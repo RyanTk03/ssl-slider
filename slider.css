@@ -63,13 +63,14 @@
 }
 
 .slider__pagination__button {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     cursor: pointer;
     position: relative;
 
-    border: 1px solid #333;
     border-radius: 50%;
+
+    background-color: rgb(201, 201, 201);
 
     transform: scale(1);
     transition: transform 0.5s ease-out;
@@ -77,15 +78,16 @@
 
 .slider__pagination__button::after {
     content: "";
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     position: absolute;
-    left: 1px;
-    top: 1px;
+    top: 50%;
+    left: 50%;
 
+    outline: 1px solid #333;
     border-radius: 50%;
 
-    background-color: rgb(201, 201, 201);
+    transform: translate(-50%, -50%);
 }
 
 .slider__pagination__button:hover {
@@ -93,7 +95,7 @@
 }
 
 .slider__pagination__button.is_active {
-    border-color: blue;
+    outline-color: blue;
     border-radius: 45%;
 
     transform-origin: left;

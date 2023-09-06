@@ -2,20 +2,31 @@
 class Slider {
 
     /**
+     * The constuctor of the slider objects.
+     * 
      * @param {HTMLElement} element The HTML element which will be the slider 
      * @param {object} options The differents options of the slider
      * @param {number} options.slideToShow Number of slide to scroll per scroll
      * @param {number} options.slideToShow Number of slide to show
+     * @param {boolean} options.endPlaceholder If a placeholder should be show at end
+     * @param {boolean} options.rtl If the right to left direction is active
+     * @param {object} options.overflow The overflow effect
+     * @param {boolean} options.overflow.active Show overflow or not
+     * @param {string} options.overflow.size The width of the next slide to show
+     * @param {boolean} options.loop If should restart slide on end or go to end on start
+     * @param {boolean} options.infiniteSlide Show infinite slide or not
+     * @param {boolean} options.adaptiveWidth If the width of each slide should be recalculate to keep in the slider
      * @param {object} options.autoPlay The auto play option
-     * @param {boolean} options.autoPlay.active 
-     * @param {boolean} options.autoPlay.delay 
-     * @param {object} options.navigation The navigation option
+     * @param {boolean} options.autoPlay.active If the slider while scroll automatically
+     * @param {number} options.autoPlay.delay The delay of the auto play on ms
+     * @param {boolean} option.autoPlay.pauseOnInteraction If auto play shoud be stoped on interaction
+     * @param {object} options.navigation The navigation options
      * @param {boolean} options.navigation.active If the navigation should be showed
-     * @param {string} options.navigation.arrow A boolean that represent if the navigation arrow should be shown
-     * @param {string} options.navigation.radio A boolean that represent if the navigation radio should be shown
-     * @param {string} options.navigation.arrowPosition The position of the navigation arrow(top or bottom)
-     * @param {string} options.navigation.radioPosition The position of the navigation radio(top or bottom)
-     * 
+     * @param {string} options.navigation.arrow The style of arrow to show
+     * @param {string} options.navigation.position The position of the navigation arrow(top or bottom)
+     * @param {object} options.pagination The pagination options
+     * @param {boolean} options.pagination.active If the pagination should be showed
+     * @param {boolean} options.pagination.forEachSlide If the one pagination per slide or one pagination per view
      */
     constructor (element, options) {
 
@@ -38,7 +49,8 @@ class Slider {
             adaptiveWidth: true,
             autoPlay: {
                 active: false,
-                delay: 5000
+                delay: 5000,
+                pauseOnInteraction: true
             },
             navigation: {
                 active: true,
@@ -113,7 +125,7 @@ class Slider {
             this.container.style.transform = `translateX(${this.currentTranslateX}px)`;
         }
 
-        this.createPagination();
+        this.createPagination()
 
         this.createNavigation();
 
@@ -145,7 +157,7 @@ class Slider {
     /**
      * Create the navigation of the slider.
      * 
-     * description: verify if the navigation option is activate or not. If it
+     * @description verify if the navigation option is activate or not. If it
      * is activate, it create a container for the navigation and add the
      * navigation button to this container.
      */
@@ -185,7 +197,7 @@ class Slider {
     /**
      * Create and init the pagination of the slider.
      * 
-     * description: verify if the pagination option is activate or not. If it
+     * @description verify if the pagination option is activate or not. If it
      * is activate, it create a container for the pagination and add the
      * navigation button to this container.
      */
@@ -350,7 +362,7 @@ class Slider {
      * Callback function called when "click" event occurs on the right
      * navigation button.
      * 
-     * @description: This function go to previous slides if rtl is active or go
+     * @description This function go to previous slides if rtl is active or go
      * next slides else.
      */
     toRight() {
@@ -394,7 +406,7 @@ class Slider {
      * Callback function called when "click" event occurs on the pagination
      * buttons.
      * 
-     * @description: This function go to next slides if rtl is active or go
+     * @description This function go to next slides if rtl is active or go
      * next slides else.
      */
     paginationClick(event) {
@@ -423,7 +435,7 @@ class Slider {
     /**
      * Callback function to the window resize event.
      * 
-     * @description: This function update the slider settings to the currents callback
+     * @description This function update the slider settings to the currents callback
      * according the responsive object in the slider options.
      */
     onResize(event) {

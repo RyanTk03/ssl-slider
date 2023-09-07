@@ -1,3 +1,5 @@
+import {leffArrowSvg, rightArrowSvg} from './slider-svg.js';
+
 
 class Slider {
 
@@ -55,7 +57,7 @@ class Slider {
             navigation: {
                 active: true,
                 arrow: 'head',
-                position: 'top'
+                position: 'middle'
             },
             pagination: {
                 forEachSlide: false,
@@ -143,12 +145,12 @@ class Slider {
      * Create a html element with the class set in argument.
      * 
      * @param {string} element 
-     * @param {string} className 
+     * @param {string} classNames 
      * @return HTMLElement
      */
-    createElementWithClass(element, className) {
+    createElementWithClass(element, classNames) {
         let elt = document.createElement(element);
-        elt.setAttribute('class', className);
+        elt.setAttribute('class', classNames);
 
         return elt;
     }
@@ -157,27 +159,46 @@ class Slider {
     /**
      * Create the navigation of the slider.
      * 
-     * @description verify if the navigation option is activate or not. If it
+     * @description Verify if the navigation option is activate or not. If it
      * is activate, it create a container for the navigation and add the
      * navigation button to this container.
      */
     createNavigation() {
 
+
         if (this.itemWrappers.length > this.options.slideToShow && this.options.navigation.active) {
 
+            let navHeight = '20px';
             //The html container for the navigation
             this.navigation = this.createElementWithClass('div', 'slider__navigation');
+            this.navigation.style.height = navHeight;
 
             //The toLeftious button
             let toLeftButton = this.createElementWithClass('div', 'slider__navigation__toLeft');
-            toLeftButton.innerHTML = this.options.navigation.arrow == 'full' ? "&#129120;" :
-                this.options.navigation.arrow == 'head' ? "&#10094;" : "&#129168;";
+            let toleftIcon = this.createElementWithClass('span', 'slider__navigation__toLeft-icon');
+            let toLeftLabel = this.createElementWithClass('p', 'slider__navigation__toLeft-label ssl-sr-only');
+
+            toleftIcon.setAttribute('aria-hidden', 'true');
+            toleftIcon.innerHTML = leffArrowSvg;
+            toLeftLabel.textContent = this.options.rtl ? 'Next' : 'Previous';
+    
+            toLeftButton.appendChild(toleftIcon);
+            toLeftButton.appendChild(toLeftLabel);
+            toLeftButton.setAttribute('role', 'button');
             toLeftButton.addEventListener('click', this.toLeft.bind(this));
 
             //The toRight button
             let toRightButton = this.createElementWithClass('div', 'slider__navigation__toRight');
-            toRightButton.innerHTML = this.options.navigation.arrow == 'full' ? "&#129122" : 
-                this.options.navigation.arrow == 'head' ? "&#10095;" : "&#129170;";
+            let toRightIcon = this.createElementWithClass('span', 'slider__navigation__toRight-icon');
+            let toRightLabel = this.createElementWithClass('div', 'slider__navigation__toRight-label ssl-sr-only');
+            
+            toRightIcon.innerHTML = rightArrowSvg;
+            toRightIcon.setAttribute('aria-hidden', 'true');
+            toRightLabel.textContent = this.options.rtl ? 'Previous' : 'Next';
+
+            toRightButton.appendChild(toRightIcon);
+            toRightButton.appendChild(toRightLabel);
+            toRightButton.setAttribute('role', 'button')
             toRightButton.addEventListener('click', this.toRight.bind(this));
 
             this.navigation.appendChild(toLeftButton);
@@ -185,8 +206,14 @@ class Slider {
 
             if(this.options.navigation.position === 'top') {
                 this.element.insertAdjacentElement('afterbegin', this.navigation);
-            } else {
+            } else if (this.options.navigation.position === 'bottom') {
                 this.element.insertAdjacentElement('beforeend', this.navigation);
+            } else {
+                this.element.style.position = 'relative';
+                this.navigation.style.position = 'absolute';
+                this.navigation.style.top = '50%';
+                this.navigation.style.transform = "translateY(calc(-50% - " + navHeight + '))';
+                this.element.appendChild(this.navigation);
             }
 
             this.updateNavigation();

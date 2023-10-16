@@ -8,7 +8,7 @@ class Slider {
      * 
      * @param {HTMLElement} element The HTML element which will be the slider 
      * @param {object} options The differents options of the slider
-     * @param {number} options.slideToShow Number of slide to scroll per scroll
+     * @param {number} options.slideToScroll Number of slide to scroll per scrolling
      * @param {number} options.slideToShow Number of slide to show
      * @param {boolean} options.endPlaceholder If a placeholder should be show at end
      * @param {boolean} options.rtl If the right to left direction is active
@@ -32,10 +32,10 @@ class Slider {
      */
     constructor (element, options) {
 
-        this.options = Object.assign({}, {
+        //set the default options
+        this.defaultOptions = Object.assign({}, {
             slideToShow: 3,
             slideToScroll: 1,
-            endPlaceholder: true,//
             rtl: false,
             overflow: {
                 active: false,
@@ -67,79 +67,68 @@ class Slider {
 
         //Initializing the object proprieties
 
+        //The current options
+        this.currentOptions = {};
         // The element which will be transform to a slider
         this.element = element;
         //The slider container
         this.container = null;
+        //Media queries list
+        this.mediaQueryLists = [];
         //The wrapper of each slider item
-        this.itemWrappers = [];
+        this.slides = [];
+        //The length of the slides array
+        this.size = 0;
         //The navigation option 
         this.navigation = null;
         //The navigation option 
         this.pagination = null;
         //The current slide
-        this.currentItem = 0;
+        this.currentSlide = 0;
         //The current last slide
-        this.lastItem = null;
+        this.lastItem = 0;
         //The translate x width
         this.currentTranslateX = 0;
         //The initial value of translation(only if the rtl direction is set)
-        if (this.options.rtl)
-            this.rtlInitTranslateX = 0;
+        this.rtlInitTranslateX = 0;
+        //offset of the slide
+        this.slideOffsets = [];
         
-        //The number of item in the slider
-        let itemLength = this.element.children.length;
-        //The width of each item
-        let itemWidth = this.options.adaptiveWidth ? (100 / itemLength) + '%' : 'auto';
+        this.setOptions()
 
-        this.container = this.createElementWithClass('div', 'slider__container');
-        this.container.style.width = this.options.adaptiveWidth ? ((100 / this.options.slideToShow) * itemLength) + '%' : 'max-content';
-        this.element.appendChild(this.container);
-
-        this.element.style.width = this.options.overflow.active ? `calc(100% - ${this.options.overflow.size})` : '100%';
-
-        //Creation of slide item
-        Array.from(this.element.children).forEach(child => {
-
-            if (!child.classList.contains('slider__container')) {
-
-                let elt = this.createElementWithClass('div', 'slider__item');
-                elt.style.width = itemWidth;
-                elt.setAttribute('aria-hidden', 'true')
-                elt.appendChild(child);
-                this.container.appendChild(elt);
-                this.itemWrappers.push(elt); 
-            }
-        });
-        this.itemWrappers[this.currentItem].setAttribute('aria-hidden', 'false');
-
-
-        //Set slider direction
-        if (this.options.rtl) {
-                
-            this.container.style.direction = 'rtl';
-
-            this.currentTranslateX = this.itemWrappers.reduce((accumulateur, element, indice) => 
-                accumulateur -= (indice + this.options.slideToShow < itemLength) ? element.offsetWidth : 0, 0);
-
-            this.rtlInitTranslateX = this.currentTranslateX
-    
-            this.container.style.transform = `translateX(${this.currentTranslateX}px)`;
-        }
-
-        this.createPagination()
-
-        this.createNavigation();
-
-        if (this.options.autoPlay.active) {
-            setInterval(() => rtl ? this.toLeft() : this.toRight(), this.options.autoPlay.delay);
-        }
-
+        this.element.addEventListener('keydown', this.onKeydown.bind(this));
         window.addEventListener('resize', this.onResize.bind(this));
     }
 
 
-    /***************** Creation of the slider parts functions *****************/
+    /**
+     * Set the slider options
+     * 
+     * @param {object} options the new options to set.
+     */
+    setOptions(options = this.defaultOptions) {
+
+        this.currentOptions = Object.assign({}, options)
+
+        this.createContainer();
+
+        if (this.pagination === null)
+            this.createPagination();
+
+        if (this.navigation === null)
+            this.createNavigation();
+
+        //Init the items list when infinite slide's option is activate
+        if (this.currentOptions.infiniteSlide)
+            this.setInfiniteSlide();
+
+        if (this.currentOptions.autoPlay.active)
+            setInterval(() => rtl ? this.toLeft() : this.toRight(), this.currentOptions.autoPlay.delay);
+
+        this.initSliderPosition();
+    }
+
+    /***************** Creation of the slider parts's functions *****************/
 
     /**
      * Create a html element with the class set in argument.
@@ -157,6 +146,45 @@ class Slider {
 
 
     /**
+     * Create a container for the slider
+     *
+     */
+    createContainer() {
+    
+        //The width of each item
+        let itemWidth = this.currentOptions.adaptiveWidth ? (100 / this.element.children.length) + '%' : 'auto';
+        
+        if (this.container === null) {
+
+            this.container = this.createElementWithClass('div', 'slider__container');
+
+            //Creation of slide wrapper and adding to the slider container
+            Array.from(this.element.children).forEach(child => {
+
+                    let elt = this.createElementWithClass('div', 'slider__item');
+                    elt.style.width = itemWidth;
+                    elt.setAttribute('aria-hidden', 'true')
+                    elt.appendChild(child);
+                    this.container.appendChild(elt);
+                    this.slides.push(elt);
+                    this.size++;
+                }
+            );
+            this.slides[this.currentSlide].setAttribute('aria-hidden', 'false');
+
+            this.element.appendChild(this.container);
+        }
+
+        this.container.style.width = this.currentOptions.adaptiveWidth ? ((100 / this.currentOptions.slideToShow) * this.size) + '%' : 'max-content';
+        if (this.currentOptions.rtl) this.container.style.direction = 'rtl';
+
+        this.element.style.width = this.currentOptions.overflow.active ? `calc(100% - ${this.currentOptions.overflow.size})` : '100%';
+        
+        this.container.style.transition = "transform 0.2s ease-out";
+    }
+
+
+    /**
      * Create the navigation of the slider.
      * 
      * @description Verify if the navigation option is activate or not. If it
@@ -165,8 +193,7 @@ class Slider {
      */
     createNavigation() {
 
-
-        if (this.itemWrappers.length > this.options.slideToShow && this.options.navigation.active) {
+        if (this.slides.length > this.currentOptions.slideToShow || this.currentOptions.infiniteSlide) {
 
             let navHeight = '20px';
             //The html container for the navigation
@@ -180,7 +207,7 @@ class Slider {
 
             toleftIcon.setAttribute('aria-hidden', 'true');
             toleftIcon.innerHTML = leffArrowSvg;
-            toLeftLabel.textContent = this.options.rtl ? 'Next' : 'Previous';
+            toLeftLabel.textContent = this.currentOptions.rtl ? 'Next' : 'Previous';
     
             toLeftButton.appendChild(toleftIcon);
             toLeftButton.appendChild(toLeftLabel);
@@ -194,7 +221,7 @@ class Slider {
             
             toRightIcon.innerHTML = rightArrowSvg;
             toRightIcon.setAttribute('aria-hidden', 'true');
-            toRightLabel.textContent = this.options.rtl ? 'Previous' : 'Next';
+            toRightLabel.textContent = this.currentOptions.rtl ? 'Previous' : 'Next';
 
             toRightButton.appendChild(toRightIcon);
             toRightButton.appendChild(toRightLabel);
@@ -204,16 +231,19 @@ class Slider {
             this.navigation.appendChild(toLeftButton);
             this.navigation.appendChild(toRightButton);
 
-            if(this.options.navigation.position === 'top') {
-                this.element.insertAdjacentElement('afterbegin', this.navigation);
-            } else if (this.options.navigation.position === 'bottom') {
-                this.element.insertAdjacentElement('beforeend', this.navigation);
-            } else {
-                this.element.style.position = 'relative';
-                this.navigation.style.position = 'absolute';
-                this.navigation.style.top = '50%';
-                this.navigation.style.transform = "translateY(calc(-50% - " + navHeight + '))';
-                this.element.appendChild(this.navigation);
+            if (this.currentOptions.navigation.active) {
+
+                if(this.currentOptions.navigation.position === 'top') {
+                    this.element.insertAdjacentElement('afterbegin', this.navigation);
+                } else if (this.currentOptions.navigation.position === 'bottom') {
+                    this.element.insertAdjacentElement('beforeend', this.navigation);
+                } else {
+                    this.element.style.position = 'relative';
+                    this.navigation.style.position = 'absolute';
+                    this.navigation.style.top = '50%';
+                    this.navigation.style.transform = "translateY(calc(-50% - " + navHeight + '))';
+                    this.element.appendChild(this.navigation);
+                }
             }
 
             this.updateNavigation();
@@ -230,10 +260,10 @@ class Slider {
      */
     createPagination() {
 
-        if (this.options.pagination.active) {
+        if (this.currentOptions.pagination.active) {
 
-            let n = this.options.pagination.forEachSlide ? this.itemWrappers.length :
-                Math.ceil(this.itemWrappers.length / this.options.slideToShow);
+            let n = this.currentOptions.pagination.forEachSlide ? this.slides.length :
+                Math.ceil(this.slides.length / this.currentOptions.slideToShow);
 
             //The html container for the navigation
             this.pagination = this.createElementWithClass('div', 'slider__pagination');
@@ -253,6 +283,80 @@ class Slider {
     }
 
 
+    /**
+     * init the current slide position
+     */
+    initSliderPosition() {
+
+        if (this.currentOptions.rtl) {
+
+            for (let i in this.slides) {
+
+                if (i + this.currentOptions.slideToShow < this.size)
+                    this.rtlInitTranslateX -= this.slides[i].offsetWidth;
+            }
+            this.currentTranslateX = this.rtlInitTranslateX;
+        }
+
+        if (this.currentOptions.infiniteSlide) this.currentSlide += this.slideOffsets[0];
+
+        this.scroll(false);
+    }
+
+
+    /**
+     * set up the infinite slide options
+     */
+    setInfiniteSlide() {
+
+        let bwOffset = this.currentOptions.slideToShow; //Foreward offset
+        let bwItems = [];
+
+        for (let i = 0, j = this.size - 1; i < bwOffset; i++, j--) {
+
+            j = j < 0 ? this.size - 1 : j;
+
+            let clone = this.slides[j].cloneNode(true);
+            bwItems.push(clone);
+            this.container.insertAdjacentElement('afterbegin', clone);
+        }
+        
+        let fwOffset = this.size % this.currentOptions.slideToShow; //Backward offset
+        let fwItems = [];
+
+        fwOffset = fwOffset ? this.currentOptions.slideToShow - fwOffset + 1: 0
+
+        for (let i = 0, j = 0; i < fwOffset; i++, j++) {
+
+            j = j == this.size ? 0 : j;
+
+            let clone = this.slides[j].cloneNode(true);
+            fwItems.push(clone);
+            this.container.appendChild(clone);
+        }
+
+        this.slides = [
+            ...bwItems,
+            ...this.slides,
+            ...fwItems
+        ];
+
+        this.slideOffsets = [bwOffset, fwOffset];
+        this.size += bwOffset + fwOffset;
+    }
+
+
+    createMediaQueries() {
+
+        this.currentOptions.responsive.forEach( responsive => {
+            let mediaQueryList = window.matchMedia(`max-width: ${responsive.breakpoint}`);
+
+            mediaQueryList.addEventListener('change', this.onMediaQueryChange.bind(this));
+
+            this.mediaQueryLists.push(mediaQueryList);
+        })
+    }
+
     /*********************** Slider update functions ***********************/
 
     /**
@@ -260,20 +364,24 @@ class Slider {
      */
     updateNavigation() {
 
-        if (this.currentItem === this.itemWrappers.length - 1 && !this.options.loop)
+        if (this.currentOptions.infiniteSlide)
+            return;
+
+        if (this.currentSlide === this.slides.length - 1 && !this.currentOptions.loop)
             this.navigation.children[1].style.display = 'none';
         
         else
             if(this.navigation.children[1].style.display = 'none')
                 this.navigation.children[1].style.display = 'block';
 
-        if (this.currentItem === 0 && !this.options.loop)
+        if (this.currentSlide === 0 && !this.currentOptions.loop)
             this.navigation.children[0].style.display = 'none';
         else
             if(this.navigation.children[0].style.display = 'none')
                 this.navigation.children[0].style.display = 'block';
     }
 
+    
     /**
      * Update the pagination when user navigate.
      */
@@ -281,48 +389,84 @@ class Slider {
 
         Array.from(this.pagination.children).forEach( child => child.classList.remove('is_active') );
 
-        let i = Math.ceil(this.currentItem / this.options.slideToShow);
+        let i = 0;
+        
+        if (this.currentOptions.infiniteSlide) {
+
+            if (this.currentOptions.pagination.forEachSlide) {
+
+                if (this.currentSlide < this.slideOffsets[0])
+                    i = this.pagination.children.length - 1;
+                else if (this.currentSlide >= this.size - this.slideOffsets[1])
+                    i = 0;
+                else
+                    i = this.currentSlide - this.slideOffsets;
+            } else {
+
+                if (this.currentSlide < this.slideOffsets[0])
+                    i = ceil((this.size - this.slideOffsets[1] - this.slideOffsets[0] + this.currentSlide - 1) /
+                    this.currentOptions.slideToShow);
+                else if (this.currentSlide >= this.size - this.slideOffsets[1])
+                    i = this.size - this.currentSlide - this.slideOffsets[1];
+                else
+                    i = ceil((this.currentSlide - this.slideOffsets[0]) / this.currentOptions.slideToShow);
+            }
+        } else
+            i = this.currentOptions.pagination.forEachSlide ?
+                this.currentSlide : ceil(this.currentSlide / this.currentOptions.slideToShow);
 
         this.pagination.children[i].classList.add('is_active');
     }
 
 
     /**
-     * This function slide the slider by translate the container.
+     * This function scroll the slider by translate the container.
+     * 
+     * @param {boolean} withTransition Determine if an animation will be applied to the scroll
      */
-    slide() {
+    scroll(withTransition = true) {
 
-        this.itemWrappers[this.currentItem].setAttribute('aria-hidden', 'false');
-        this.itemWrappers[this.lastItem].setAttribute('aria-hidden', 'true');
+        let temp = this.container.style.transition;
 
-        if (this.currentItem === 0)
-            this.currentTranslateX = (this.options.rtl) ? this.rtlInitTranslateX : 0;
+        this.slides[this.lastItem].setAttribute('aria-hidden', 'true');
+        this.slides[this.currentSlide].setAttribute('aria-hidden', 'false');
+
+        if (!withTransition) {
+
+            temp = this.container.style.transition;
+            this.container.style.transition = "none";
+        }
+// debugger
+        if (this.currentSlide === 0)
+            this.currentTranslateX = (this.currentOptions.rtl) ? this.rtlInitTranslateX : 0;
         
         else {
 
-            if (this.lastItem < this.currentItem)
-                for (let i = this.lastItem; i < this.currentItem; i++)
-                    this.currentTranslateX += (this.options.rtl) ? this.itemWrappers[i].offsetWidth : -this.itemWrappers[i].offsetWidth;
+            if (this.lastItem < this.currentSlide)
+                //Compute the sum of the width beetween the last slide and the current slide
+                for (let i = this.lastItem; i < this.currentSlide; i++)
+                    this.currentTranslateX += (this.currentOptions.rtl) ? this.slides[i].offsetWidth : -this.slides[i].offsetWidth;
             
             else
-                for (let i = this.lastItem; i > this.currentItem; i--)
-                    this.currentTranslateX += (this.options.rtl) ? -this.itemWrappers[i].offsetWidth : this.itemWrappers[i].offsetWidth;
+                //Cf last comment
+                for (let i = this.lastItem; i > this.currentSlide; i--)
+                    this.currentTranslateX += (this.currentOptions.rtl) ? -this.slides[i].offsetWidth : this.slides[i].offsetWidth;
         }
 
         this.container.style.transform = `translateX(${this.currentTranslateX}px)`;
+        
+        //Forcing redrawing the DOM else the transition value will be the last value assigned
+        //so, event if we don't want transition, the transition will be applied because the last value
+        //will be temp which contains the transition value saved.
+        if (!withTransition)
+            this.container.offsetHeight;//Forcing redraw by request height for example.
+        
+        if (!withTransition) {
+            this.container.style.transition = temp;
+        }
 
         this.updateNavigation();
-
         this.updatePagination();
-    }
-
-
-    /**
-     * @description This function update the settings/options when new settings are set.
-     * ie: when a new breakpoint is find after the window "resize" event.
-     */
-    resetOptions(newOptions) {
-
     }
 
 
@@ -338,17 +482,37 @@ class Slider {
 
         let setSlide = false;
 
-        if(this.currentItem + this.options.slideToScroll < this.itemWrappers.length) {
+        if (this.currentOptions.infiniteSlide) {
+
+            let offset = this.currentSlide + this.currentOptions.slideToScroll + this.currentOptions.slideToShow - this.size;
+
+            this.lastItem = this.currentSlide;
+
+            if (offset > 0) {
+
+                this.currentSlide = this.slideOffsets[0] + (this.currentOptions.slideToScroll - abs(offset));
+                this.scroll(false);
+                this.lastItem = this.currentSlide;
+                this.currentSlide += abs(offset);
+            } else {
+                this.currentSlide += this.currentOptions.slideToScroll
+            }
 
             setSlide = true;
-            this.lastItem = this.currentItem;
-            this.currentItem += this.options.slideToScroll;
+        } else {
 
-        } else if(this.currentItem + this.options.slideToScroll >= this.itemWrappers.length && this.options.loop) {
+            if(this.currentSlide + this.currentOptions.slideToScroll < this.slides.length) {
 
-            setSlide = true;
-            this.lastItem = this.currentItem;
-            this.currentItem = 0;
+                setSlide = true;
+                this.lastItem = this.currentSlide;
+                this.currentSlide += this.currentOptions.slideToScroll;
+
+            } else if(this.currentSlide + this.currentOptions.slideToScroll >= this.slides.length && this.currentOptions.loop) {
+
+                setSlide = true;
+                this.lastItem = this.currentSlide;
+                this.currentSlide = 0;
+            }
         }
 
         return setSlide;
@@ -367,21 +531,41 @@ class Slider {
 
         let setSlide = false;
 
-        if(this.currentItem - this.options.slideToScroll >= 0) {
+        if (this.currentOptions.infiniteSlide) {
+
+            let offset = this.currentSlide - this.currentOptions.slideToScroll
+            
+            this.lastItem = this.currentSlide;
+
+            if (offset < 0) {
+                this.currentSlide += this.size - this.slideOffsets[1] - this.slideOffsets[0];
+                this.scroll(false);
+                this.lastItem = this.currentSlide;
+                this.currentSlide -= abs(offset);
+            } else {
+                this.currentSlide -= this.currentOptions.slideToScroll
+            }
 
             setSlide = true;
-            this.lastItem = this.currentItem;
-            this.currentItem -= this.options.slideToScroll;
+        } else {
 
-        } else if(this.currentItem - this.options.slideToScroll < 0 && this.options.loop) {
+            if(this.currentSlide - this.currentOptions.slideToScroll >= 0) {
 
-            setSlide = true;
-            this.lastItem = this.currentItem;
-            this.currentItem = this.itemWrappers.length - 1;
+                setSlide = true;
+                this.lastItem = this.currentSlide;
+                this.currentSlide -= this.currentOptions.slideToScroll;
+
+            } else if(this.currentSlide - this.currentOptions.slideToScroll < 0 && this.currentOptions.loop) {
+
+                setSlide = true;
+                this.lastItem = this.currentSlide;
+                this.currentSlide = this.slides.length - 1;
+            }
         }
 
         return setSlide;
     }
+
 
     /**************************** Callback functions **************************/
 
@@ -396,14 +580,14 @@ class Slider {
 
         let setSlide = false;
 
-        if (this.options.rtl)
+        if (this.currentOptions.rtl)
             setSlide = this.gotoPreviousSlide();
 
         else
             setSlide = this.gotoNextSlide();
 
         if (setSlide)
-            this.slide();
+            this.scroll();
     }
 
 
@@ -418,14 +602,14 @@ class Slider {
 
         let setSlide = false;
 
-        if (this.options.rtl)
+        if (this.currentOptions.rtl)
             setSlide = this.gotoNextSlide();
 
         else
             setSlide = this.gotoPreviousSlide();
 
         if (setSlide)
-            this.slide();
+            this.scroll();
     }
 
 
@@ -440,21 +624,21 @@ class Slider {
 
         let i = Array.from(this.pagination.children).indexOf(event.target);
 
-        let j = this.options.pagination.forEachSlide ? i : i * this.options.slideToShow;
+        let j = this.currentOptions.pagination.forEachSlide ? i : i * this.currentOptions.slideToShow;
 
-        if (j >= this.itemWrappers.length)
-            j = this.itemWrappers.length - 1;
+        if (j >= this.slides.length)
+            j = this.slides.length - 1;
 
-        if (j != this.currentItem) {
+        if (j != this.currentSlide) {
 
             Array.from(this.pagination.children).forEach( child => child.classList.remove('is_active') );
 
-            this.lastItem = this.currentItem;
+            this.lastItem = this.currentSlide;
 
-            this.currentItem = j;
-            console.log(this.currentItem)
+            this.currentSlide = j;
+            console.log(this.currentSlide)
             event.target.classList.toggle('is_active');
-            this.slide();
+            this.scroll();
         }
     }
 
@@ -467,18 +651,65 @@ class Slider {
      */
     onResize(event) {
 
-        this.options.responsive.forEach(responsive => {
+        // this.currentOptions.responsive.forEach(responsive => {
                 
-            if (window.innerWidth <= responsive.breakpoint)
-                this.resetOptions(responsive.options);
+        //     if (window.innerWidth <= responsive.breakpoint)
+        //         this.resetOptions(responsive.options);
 
-            else 
-                this.resetOptions(this.options);
+        //     else 
+        //         this.resetOptions(this.currentOptions);
 
-        });
+        // });
+    }
+
+
+    /**
+     * Callback function to the "keydown" event.
+     * 
+     * @description This function update the slider settings to the currents callback
+     * according the responsive object in the slider options.
+     */
+    onKeydown(event) {
+
+        if (event.code == "ArrowLeft") {
+            this.toLeft();
+        } else if (event.code == "ArrowRight") {
+            this.toRight();
+        }
+    }
+
+
+    onMediaQueryChange(mql) {
+
+        // if (mql.matches) {
+
+        //     this.resetOptions(this.)
+        // }
+        
     }
 }
 
+/**
+ * Compute the absolute value of a number.
+ * 
+ * @param {number} x The number which absolute value to compute.
+ * @returns The absolute value of x
+ */
+function abs (x) {
+    return (x < 0) ? -x : x;
+}
+
+
+/**
+ * Get the integer which is immediatly lower than x if x is decimal or
+ * the number itself if it is an integer.
+ * 
+ * @param {number} x
+ * @returns The integer greater than x or x itself.
+ */
+function ceil (x) {
+    return parseInt(x);
+}
 
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -488,5 +719,4 @@ document.addEventListener('DOMContentLoaded', function() {
     for(let slider of sliders) {
         let x = new Slider(slider, {});
     }
-
 });

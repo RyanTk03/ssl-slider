@@ -6,9 +6,6 @@
 .slider__container {
     display: flex;
     justify-content: space-between;
-    
-    transform: translateX(0);
-    transition: transform 0.2s ease-out;
 }
 
 .slider__item {
